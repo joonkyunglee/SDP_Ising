@@ -1,4 +1,4 @@
-# Global-\(B\) SOS/SDP Report for \(d=2\)
+# Global-$B$ SOS/SDP Report for $d=2$
 
 Date: 2026-04-19  
 Workspace: `/Users/joonkyunglee/SDP_Ising`  
@@ -6,9 +6,9 @@ Main script: `/Users/joonkyunglee/SDP_Ising/scripts/run_d2_sos_global_B.jl`
 
 ## 1) Goal
 
-We want a **single SOS certificate valid for all \(B \in (0,1)\)** (not fixed \(B\)).
+We want a **single SOS certificate valid for all $B \in (0,1)$** (not fixed $B$).
 
-For \(d=2\), define
+For $d=2$, define
 
 $$
 P_t(x)=\sum_{k=0}^{t}\binom{t}{k}B^{\binom{k}{2}+\binom{t-k}{2}}x^k,\qquad
@@ -43,11 +43,11 @@ $$
 The script builds:
 
 1. `fhat` = cleared polynomial equivalent of the inequality.
-2. `gtilde` = cleared equality constraint (`gtilde = b^3 * ghat`) to remove \(1/b\) denominators.
+2. `gtilde` = cleared equality constraint (`gtilde = b^3 * ghat`) to remove $1/b$ denominators.
 3. box multipliers:
-   - \(g_u = u(1-u)\),
-   - \(g_v = v(1-v)\),
-   - \(g_b = b(1-b)\).
+   - $g_u = u(1-u)$,
+   - $g_v = v(1-v)$,
+   - $g_b = b(1-b)$.
 
 Certificate searched:
 
@@ -61,9 +61,9 @@ f_{\text{model}}-\gamma
 +\tau\,g_{\text{model}},
 $$
 
-with \(\sigma_\bullet\) SOS, \(\tau\) polynomial.
+with $\sigma_\bullet$ SOS, $\tau$ polynomial.
 
-`--no-bmult` disables \(\sigma_b g_b\).
+`--no-bmult` disables $\sigma_b g_b$.
 
 ---
 
@@ -80,29 +80,29 @@ Functions:
 - `tau_support`
 
 Key idea:
-- build monomial exponent support sets in \((b,u,v)\),
+- build monomial exponent support sets in $(b,u,v)$,
 - derive candidate Gram bases from half-support rules,
 - avoid dense `monomials([b,u,v], 0:d)` construction.
 
 Observed raw supports:
-- \(|E_f| = 2381\),
-- \(|E_g| = 456\).
+- $|E_f| = 2381$,
+- $|E_g| = 456$.
 
 ### 3.2 Multiplier-specific bases
 
 Separate sparse supports are built for:
-- `S0` for \(\sigma_0\),
-- `Su` for \(\sigma_u\),
-- `Sv` for \(\sigma_v\),
-- `Sb` for \(\sigma_b\),
-- `St` for \(\tau\).
+- `S0` for $\sigma_0$,
+- `Su` for $\sigma_u$,
+- `Sv` for $\sigma_v$,
+- `Sb` for $\sigma_b$,
+- `St` for $\tau$.
 
 Default level-0 sizes from run logs:
-- \(|S0|=524\),
-- \(|Su|=543\),
-- \(|Sv|=561\),
-- \(|Sb|=565\),
-- \(|St|=5306\) before truncation.
+- $|S0|=524$,
+- $|Su|=543$,
+- $|Sv|=561$,
+- $|Sb|=565$,
+- $|St|=5306$ before truncation.
 
 ### 3.3 Tau-basis capping
 
@@ -112,7 +112,7 @@ Function:
 Option:
 - `--max_tau=<N>`
 
-This keeps only the first \(N\) monomials (sorted by total degree then lexicographic style) to reduce linear variable count in \(\tau\).
+This keeps only the first $N$ monomials (sorted by total degree then lexicographic style) to reduce linear variable count in $\tau$.
 
 Tried values:
 - full: `max_tau=0` (no cap, 5306),
@@ -139,8 +139,8 @@ Option:
 - default ON (disable via `--no-scale`)
 
 Technique:
-- \(f_{\text{model}} = fhat / \max|c_f|\),
-- \(g_{\text{model}} = gtilde / \max|c_g|\).
+- $f_{\text{model}} = fhat / \max|c_f|$,
+- $g_{\text{model}} = gtilde / \max|c_g|$.
 
 Observed scales:
 - `fscale = 1.048e+08`,
@@ -182,7 +182,7 @@ All commands used absolute path to Julia:
 | 6 | scaled model, `--time=300 --threads=8 --max_tau=2500` | `status = TIME_LIMIT`, no certificate |
 
 Summary:
-- The global-\(B\) model is implemented and runs successfully end-to-end.
+- The global-$B$ model is implemented and runs successfully end-to-end.
 - On current settings/hardware, MOSEK did not return `OPTIMAL` for a full global certificate.
 - Best behavior observed: feasible iterate reached, but solver terminated before optimality.
 
