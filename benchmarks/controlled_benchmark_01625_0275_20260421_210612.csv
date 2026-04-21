@@ -1,0 +1,10 @@
+mode,rep,real,status,certified,use_half_s
+baseline,1,174.25,OPTIMAL,YES,false
+baseline,2,169.46,OPTIMAL,YES,false
+baseline,3,179.69,OPTIMAL,YES,false
+half_flag_only,1,196.68,OPTIMAL,YES,false
+half_flag_only,2,189.07,OPTIMAL,YES,false
+half_flag_only,3,224.54,OPTIMAL,YES,false
+half_experimental,1,319.68,SLOW_PROGRESS,NO,true
+half_experimental,2,325.31,TIME_LIMIT,NO,true
+half_experimental,3,326.50,TIME_LIMIT,NO,true

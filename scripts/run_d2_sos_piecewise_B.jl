@@ -197,8 +197,11 @@ function run_interval_certificate(
     Sb_base::Set{Exp3},
     Su_base::Set{Exp3},
     Sv_base::Set{Exp3},
+    Suh_base::Set{Exp3},
+    Svh_base::Set{Exp3},
     Sτ_base::Set{Exp3};
     use_global_b_multiplier::Bool = true,
+    use_half_s::Bool = false,
     level::Int = 0,
     max_tau_terms::Int = 2500,
     max_time::Float64 = 600.0,
@@ -213,6 +216,8 @@ function run_interval_certificate(
     SB = copy(Sb_base)
     Su = copy(Su_base)
     Sv = copy(Sv_base)
+    Suh = copy(Suh_base)
+    Svh = copy(Svh_base)
     Sτ = copy(Sτ_base)
 
     if level > 0
@@ -221,6 +226,8 @@ function run_interval_certificate(
         SB = expand_support(SB, (21, 8, 8), level)
         Su = expand_support(Su, (20, 7, 8), level)
         Sv = expand_support(Sv, (20, 8, 7), level)
+        Suh = expand_support(Suh, (20, 7, 8), level)
+        Svh = expand_support(Svh, (20, 8, 7), level)
         Sτ = expand_support(Sτ, (34, 14, 14), level)
     end
 
@@ -231,16 +238,24 @@ function run_interval_certificate(
     monsB, ordB = tuples_to_monomials(SB, vars)
     monsu, ordu = tuples_to_monomials(Su, vars)
     monsv, ordv = tuples_to_monomials(Sv, vars)
+    monsuh, orduh = tuples_to_monomials(Suh, vars)
+    monsvh, ordvh = tuples_to_monomials(Svh, vars)
     monsτ, ordτ = tuples_to_monomials(Sτ, vars)
 
     println(@sprintf("Interval [%.6f, %.6f] setup", L, U))
     println("support sizes: |Ef|=$(length(Ef)), |Eg|=$(length(Eg))")
     println("basis sizes: |S0|=$(length(ord0)), |SI|=$(length(ordI)), |SB|=$(length(ordB)), |Su|=$(length(ordu)), |Sv|=$(length(ordv)), |Sτ|=$(length(ordτ))")
+    if use_half_s
+        println("half-s bases: |Suh|=$(length(orduh)), |Svh|=$(length(ordvh))")
+    end
 
     gi = (b - L) * (U - b)
     gb = b * (1 - b)
     gu = u * (1 - u)
     gv = v * (1 - v)
+    # Nonnegative center multipliers on [0,1].
+    guh = u * (1 - u) * (2u - 1)^2
+    gvh = v * (1 - v) * (2v - 1)^2
 
     model = Model(Mosek.Optimizer)
     if silent
@@ -260,12 +275,23 @@ function run_interval_certificate(
     end
     @variable(model, σu, SOSPoly(monsu))
     @variable(model, σv, SOSPoly(monsv))
+    σuh = nothing
+    σvh = nothing
+    if use_half_s
+        @variable(model, σuh_local, SOSPoly(monsuh))
+        @variable(model, σvh_local, SOSPoly(monsvh))
+        σuh = σuh_local
+        σvh = σvh_local
+    end
     @variable(model, τ, Poly(monsτ))
     @variable(model, γ)
 
     rhs = σ0 + σI * gi + σu * gu + σv * gv + τ * gmodel
     if use_global_b_multiplier
         rhs += σB * gb
+    end
+    if use_half_s
+        rhs += σuh * guh + σvh * gvh
     end
     @constraint(model, fmodel - γ == rhs)
     @objective(model, Max, γ)
@@ -289,11 +315,25 @@ function run_interval_certificate(
             qI = value.(Matrix(σI.Q))
             qu = value.(Matrix(σu.Q))
             qv = value.(Matrix(σv.Q))
+            qUh = nothing
+            qVh = nothing
+            if use_half_s
+                qUh = value.(Matrix(σuh.Q))
+                qVh = value.(Matrix(σvh.Q))
+            end
             if use_global_b_multiplier
                 qB = value.(Matrix(σB.Q))
-                println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(QB) = ", eigmin_str(qB), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv))
+                if use_half_s
+                    println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(QB) = ", eigmin_str(qB), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv), ", min_eig(QUh) = ", eigmin_str(qUh), ", min_eig(QVh) = ", eigmin_str(qVh))
+                else
+                    println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(QB) = ", eigmin_str(qB), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv))
+                end
             else
-                println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv))
+                if use_half_s
+                    println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv), ", min_eig(QUh) = ", eigmin_str(qUh), ", min_eig(QVh) = ", eigmin_str(qVh))
+                else
+                    println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv))
+                end
             end
         end
     elseif pstatus in (FEASIBLE_POINT, NEARLY_FEASIBLE_POINT)
@@ -326,6 +366,9 @@ function main()
     silent = !has_flag("--verbose")
     scale_polys = !has_flag("--no-scale")
     use_global_b_multiplier = !has_flag("--no-bmult")
+    half_s_requested = has_flag("--half-s")
+    half_s_experimental = has_flag("--half-s-experimental")
+    use_half_s = half_s_requested && half_s_experimental
     tau_schedule = parse_int_list_arg("tau_schedule", [1200, 1800, 2500])
 
     if !(0.0 < bmin < bmax < 1.0)
@@ -344,6 +387,8 @@ function main()
     Sb_base = shifted_half_support(Ef, 1, [1, 2])
     Su_base = shifted_half_support(Ef, 2, [1, 2])
     Sv_base = shifted_half_support(Ef, 3, [1, 2])
+    Suh_base = shifted_half_support(Ef, 2, [3, 4])
+    Svh_base = shifted_half_support(Ef, 3, [3, 4])
     Sτ_base = tau_support(Ef, Eg)
 
     fscale = 1.0
@@ -360,8 +405,15 @@ function main()
     println("Piecewise global-B run (interval multiplier on (b-L)(U-b))")
     println("range=[$bmin, $bmax], intervals=$nint, level=$level, tau_schedule=$(tau_schedule), time_per_try=$max_time")
     println("use_global_b_multiplier=$(use_global_b_multiplier)")
+    if half_s_requested && !half_s_experimental
+        println("NOTE: --half-s requested but disabled by default; use --half-s-experimental to enable the heavier center-multiplier mode.")
+    end
+    println("use_half_s=$(use_half_s)")
     println("global supports: |Ef|=$(length(Ef)), |Eg|=$(length(Eg))")
     println("base sizes: |S0|=$(length(S0_base)), |Sb|=$(length(Sb_base)), |Su|=$(length(Su_base)), |Sv|=$(length(Sv_base)), |Sτ|=$(length(Sτ_base))")
+    if use_half_s
+        println("half-s extras: |Suh|=$(length(Suh_base)), |Svh|=$(length(Svh_base)) (via u(1-u)(2u-1)^2, v(1-v)(2v-1)^2)")
+    end
     if scale_polys
         println("scales: fscale=", @sprintf("%.3e", fscale), ", gscale=", @sprintf("%.3e", gscale))
     end
@@ -376,8 +428,9 @@ function main()
             println("Trying tau cap = $(tau_cap)")
             r = run_interval_certificate(
                 L, U,
-                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Sτ_base;
+                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base;
                 use_global_b_multiplier = use_global_b_multiplier,
+                use_half_s = use_half_s,
                 level = level,
                 max_tau_terms = tau_cap,
                 max_time = max_time,
