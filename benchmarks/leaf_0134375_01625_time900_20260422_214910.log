@@ -1,0 +1,29 @@
+Piecewise global-B run (interval multiplier on (b-L)(U-b))
+range=[0.134375, 0.1625], intervals=1, level=0, tau_schedule=[1200, 1800], time_per_try=900.0
+use_global_b_multiplier=false
+use_half_s=false
+feasibility_mode=true, feas_eps_original=1.0e-9
+adaptive_depth=0, adaptive_min_width=0.0
+global supports: |Ef|=2381, |Eg|=456
+base sizes: |S0|=524, |Sb|=565, |Su|=543, |Sv|=561, |Sτ|=5306
+scales: fscale=1.048e+08, gscale=5.520e+03
+
+=== Interval 1/1: [0.134375, 0.1625] ===
+Trying tau cap = 1200
+Interval [0.134375, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.134375, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+
+=== Summary ===
+[01] [0.134375, 0.162500] depth=0 status=SLOW_PROGRESS certified=NO gamma=-0.000000e+00
+Certified intervals: 0 / 1
+Overall result: PARTIAL/NO coverage. Increase time, level, or tau schedule.
+real 309.24
+user 1581.49
+sys 29.92

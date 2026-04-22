@@ -1,0 +1,107 @@
+Piecewise global-B run (interval multiplier on (b-L)(U-b))
+range=[0.05, 0.1625], intervals=1, level=0, tau_schedule=[1200, 1800], time_per_try=300.0
+use_global_b_multiplier=false
+use_half_s=false
+feasibility_mode=true, feas_eps_original=1.0e-9
+adaptive_depth=2, adaptive_min_width=0.0
+global supports: |Ef|=2381, |Eg|=456
+base sizes: |S0|=524, |Sb|=565, |Su|=543, |Sv|=561, |Sτ|=5306
+scales: fscale=1.048e+08, gscale=5.520e+03
+
+=== Adaptive node 1: depth=0, interval=[0.05, 0.1625] ===
+Trying tau cap = 1200
+Interval [0.050000, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.050000, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Adaptive split triggered: [0.050000, 0.162500] -> [0.050000, 0.106250] and [0.106250, 0.162500]
+
+=== Adaptive node 2: depth=1, interval=[0.05, 0.10625000000000001] ===
+Trying tau cap = 1200
+Interval [0.050000, 0.106250] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.050000, 0.106250] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = TIME_LIMIT, no feasible certificate data
+Adaptive split triggered: [0.050000, 0.106250] -> [0.050000, 0.078125] and [0.078125, 0.106250]
+
+=== Adaptive node 3: depth=2, interval=[0.05, 0.078125] ===
+Trying tau cap = 1200
+Interval [0.050000, 0.078125] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.050000, 0.078125] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+
+=== Adaptive node 4: depth=2, interval=[0.078125, 0.10625000000000001] ===
+Trying tau cap = 1200
+Interval [0.078125, 0.106250] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.078125, 0.106250] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = TIME_LIMIT, no feasible certificate data
+
+=== Adaptive node 5: depth=1, interval=[0.10625000000000001, 0.1625] ===
+Trying tau cap = 1200
+Interval [0.106250, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = TIME_LIMIT, no feasible certificate data
+Trying tau cap = 1800
+Interval [0.106250, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = TIME_LIMIT, no feasible certificate data
+Adaptive split triggered: [0.106250, 0.162500] -> [0.106250, 0.134375] and [0.134375, 0.162500]
+
+=== Adaptive node 6: depth=2, interval=[0.10625000000000001, 0.13437500000000002] ===
+Trying tau cap = 1200
+Interval [0.106250, 0.134375] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = TIME_LIMIT, no feasible certificate data
+Trying tau cap = 1800
+Interval [0.106250, 0.134375] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = TIME_LIMIT, no feasible certificate data
+
+=== Adaptive node 7: depth=2, interval=[0.13437500000000002, 0.1625] ===
+Trying tau cap = 1200
+Interval [0.134375, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+Trying tau cap = 1800
+Interval [0.134375, 0.162500] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1800
+status = SLOW_PROGRESS, feasible gamma_original = -0.000000000000e+00 (not certified)
+
+=== Summary ===
+[01] [0.050000, 0.078125] depth=2 status=SLOW_PROGRESS certified=NO gamma=-0.000000e+00
+[02] [0.078125, 0.106250] depth=2 status=TIME_LIMIT certified=NO gamma=NaN
+[03] [0.106250, 0.134375] depth=2 status=TIME_LIMIT certified=NO gamma=NaN
+[04] [0.134375, 0.162500] depth=2 status=SLOW_PROGRESS certified=NO gamma=-0.000000e+00
+Certified intervals: 0 / 4
+Overall result: PARTIAL/NO coverage. Increase time, level, or tau schedule.
+real 3798.07
+user 16229.84
+sys 306.02

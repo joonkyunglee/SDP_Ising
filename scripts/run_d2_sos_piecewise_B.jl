@@ -183,6 +183,10 @@ function build_uniform_intervals(bmin::Float64, bmax::Float64, n::Int)
     return [(edges[i], edges[i + 1]) for i in 1:n]
 end
 
+function cert_status(status)
+    status in (OPTIMAL, LOCALLY_SOLVED, ALMOST_OPTIMAL)
+end
+
 function run_interval_certificate(
     L::Float64,
     U::Float64,
@@ -202,6 +206,7 @@ function run_interval_certificate(
     Sτ_base::Set{Exp3};
     use_global_b_multiplier::Bool = true,
     use_half_s::Bool = false,
+    feas_eps_original::Float64 = 0.0,
     level::Int = 0,
     max_tau_terms::Int = 2500,
     max_time::Float64 = 600.0,
@@ -285,6 +290,8 @@ function run_interval_certificate(
     end
     @variable(model, τ, Poly(monsτ))
     @variable(model, γ)
+    use_feas_mode = feas_eps_original > 0.0
+    gamma_target_scaled = use_feas_mode ? (-feas_eps_original / fscale) : NaN
 
     rhs = σ0 + σI * gi + σu * gu + σv * gv + τ * gmodel
     if use_global_b_multiplier
@@ -294,7 +301,12 @@ function run_interval_certificate(
         rhs += σuh * guh + σvh * gvh
     end
     @constraint(model, fmodel - γ == rhs)
-    @objective(model, Max, γ)
+    if use_feas_mode
+        @constraint(model, γ == gamma_target_scaled)
+        @objective(model, Max, 0.0)
+    else
+        @objective(model, Max, γ)
+    end
     optimize!(model)
 
     status = termination_status(model)
@@ -305,11 +317,22 @@ function run_interval_certificate(
     gamma_original = NaN
     cert = false
 
-    if status in (OPTIMAL, LOCALLY_SOLVED, ALMOST_OPTIMAL)
+    if cert_status(status)
         gamma_scaled = value(γ)
         gamma_original = gamma_scaled * fscale
-        cert = gamma_original >= -1e-7
-        println("status = ", status, ", gamma_original = ", @sprintf("%.12e", gamma_original))
+        cert = use_feas_mode ? true : (gamma_original >= -1e-7)
+        if use_feas_mode
+            println(
+                "status = ",
+                status,
+                ", feasibility target gamma_original = ",
+                @sprintf("%.12e", -feas_eps_original),
+                ", attained gamma_original = ",
+                @sprintf("%.12e", gamma_original),
+            )
+        else
+            println("status = ", status, ", gamma_original = ", @sprintf("%.12e", gamma_original))
+        end
         if cert
             q0 = value.(Matrix(σ0.Q))
             qI = value.(Matrix(σI.Q))
@@ -356,6 +379,55 @@ function run_interval_certificate(
     )
 end
 
+function run_interval_with_schedule(
+    L::Float64,
+    U::Float64,
+    vars,
+    fmodel,
+    gmodel,
+    fscale::Float64,
+    Ef::Set{Exp3},
+    Eg::Set{Exp3},
+    S0_base::Set{Exp3},
+    Sb_base::Set{Exp3},
+    Su_base::Set{Exp3},
+    Sv_base::Set{Exp3},
+    Suh_base::Set{Exp3},
+    Svh_base::Set{Exp3},
+    Sτ_base::Set{Exp3},
+    tau_schedule::Vector{Int};
+    use_global_b_multiplier::Bool = true,
+    use_half_s::Bool = false,
+    feas_eps_original::Float64 = 0.0,
+    level::Int = 0,
+    max_time::Float64 = 600.0,
+    threads::Int = 0,
+    silent::Bool = true,
+)
+    best = nothing
+    for tau_cap in tau_schedule
+        println("Trying tau cap = $(tau_cap)")
+        r = run_interval_certificate(
+            L, U,
+            vars, fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base;
+            use_global_b_multiplier = use_global_b_multiplier,
+            use_half_s = use_half_s,
+            feas_eps_original = feas_eps_original,
+            level = level,
+            max_tau_terms = tau_cap,
+            max_time = max_time,
+            threads = threads,
+            silent = silent,
+        )
+        best = r
+        if r.certified
+            println("Certified interval with tau cap = $(tau_cap)")
+            break
+        end
+    end
+    return best
+end
+
 function main()
     bmin = parse_float_arg("bmin", 0.001)
     bmax = parse_float_arg("bmax", 0.999)
@@ -370,12 +442,24 @@ function main()
     half_s_experimental = has_flag("--half-s-experimental")
     use_half_s = half_s_requested && half_s_experimental
     tau_schedule = parse_int_list_arg("tau_schedule", [1200, 1800, 2500])
+    feas_eps_original = parse_float_arg("feas_eps", 0.0)
+    adaptive_depth = parse_int_arg("adaptive_depth", 0)
+    adaptive_min_width = parse_float_arg("adaptive_min_width", 0.0)
 
     if !(0.0 < bmin < bmax < 1.0)
         error("Require 0 < bmin < bmax < 1.")
     end
     if nint < 1
         error("intervals must be >= 1")
+    end
+    if feas_eps_original < 0
+        error("feas_eps must be >= 0")
+    end
+    if adaptive_depth < 0
+        error("adaptive_depth must be >= 0")
+    end
+    if adaptive_min_width < 0
+        error("adaptive_min_width must be >= 0")
     end
 
     @polyvar b u v
@@ -409,6 +493,8 @@ function main()
         println("NOTE: --half-s requested but disabled by default; use --half-s-experimental to enable the heavier center-multiplier mode.")
     end
     println("use_half_s=$(use_half_s)")
+    println("feasibility_mode=$(feas_eps_original > 0.0), feas_eps_original=$(feas_eps_original)")
+    println("adaptive_depth=$(adaptive_depth), adaptive_min_width=$(adaptive_min_width)")
     println("global supports: |Ef|=$(length(Ef)), |Eg|=$(length(Eg))")
     println("base sizes: |S0|=$(length(S0_base)), |Sb|=$(length(Sb_base)), |Su|=$(length(Su_base)), |Sv|=$(length(Sv_base)), |Sτ|=$(length(Sτ_base))")
     if use_half_s
@@ -421,29 +507,52 @@ function main()
     intervals = build_uniform_intervals(bmin, bmax, nint)
     results = Any[]
 
-    for (idx, (L, U)) in enumerate(intervals)
-        println("\n=== Interval $(idx)/$(nint): [$(L), $(U)] ===")
-        best = nothing
-        for tau_cap in tau_schedule
-            println("Trying tau cap = $(tau_cap)")
-            r = run_interval_certificate(
+    if adaptive_depth == 0
+        for (idx, (L, U)) in enumerate(intervals)
+            println("\n=== Interval $(idx)/$(nint): [$(L), $(U)] ===")
+            r = run_interval_with_schedule(
                 L, U,
-                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base;
+                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
                 use_global_b_multiplier = use_global_b_multiplier,
                 use_half_s = use_half_s,
+                feas_eps_original = feas_eps_original,
                 level = level,
-                max_tau_terms = tau_cap,
                 max_time = max_time,
                 threads = threads,
                 silent = silent,
             )
-            best = r
-            if r.certified
-                println("Certified interval with tau cap = $(tau_cap)")
-                break
+            push!(results, merge(r, (depth = 0,)))
+        end
+    else
+        queue = [(L = it[1], U = it[2], depth = 0) for it in intervals]
+        leaf_idx = 0
+        while !isempty(queue)
+            task = popfirst!(queue)
+            leaf_idx += 1
+            println("\n=== Adaptive node $(leaf_idx): depth=$(task.depth), interval=[$(task.L), $(task.U)] ===")
+            r = run_interval_with_schedule(
+                task.L, task.U,
+                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
+                use_global_b_multiplier = use_global_b_multiplier,
+                use_half_s = use_half_s,
+                feas_eps_original = feas_eps_original,
+                level = level,
+                max_time = max_time,
+                threads = threads,
+                silent = silent,
+            )
+            width = task.U - task.L
+            should_split = (!r.certified) && (task.depth < adaptive_depth) && (width > adaptive_min_width)
+            if should_split
+                mid = 0.5 * (task.L + task.U)
+                println(@sprintf("Adaptive split triggered: [%.6f, %.6f] -> [%.6f, %.6f] and [%.6f, %.6f]", task.L, task.U, task.L, mid, mid, task.U))
+                pushfirst!(queue, (L = mid, U = task.U, depth = task.depth + 1))
+                pushfirst!(queue, (L = task.L, U = mid, depth = task.depth + 1))
+            else
+                push!(results, merge(r, (depth = task.depth,)))
             end
         end
-        push!(results, best)
+        sort!(results; by = r -> r.L)
     end
 
     println("\n=== Summary ===")
@@ -454,7 +563,7 @@ function main()
             ncert += 1
         end
         gtxt = isnan(r.gamma_original) ? "NaN" : @sprintf("%.6e", r.gamma_original)
-        println(@sprintf("[%02d] [%.6f, %.6f] status=%s certified=%s gamma=%s", i, r.L, r.U, string(r.status), cmark, gtxt))
+        println(@sprintf("[%02d] [%.6f, %.6f] depth=%d status=%s certified=%s gamma=%s", i, r.L, r.U, r.depth, string(r.status), cmark, gtxt))
     end
     println(@sprintf("Certified intervals: %d / %d", ncert, length(results)))
     if ncert == length(results)
