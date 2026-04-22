@@ -6,6 +6,8 @@ using DynamicPolynomials
 using MosekTools
 using LinearAlgebra
 using Printf
+using DelimitedFiles
+using Dates
 
 const Exp3 = NTuple{3, Int}
 
@@ -33,7 +35,7 @@ function parse_string_arg(name::String, default::String)
     prefix = "--$(name)="
     for a in ARGS
         if startswith(a, prefix)
-            return split(a, "=", limit = 2)[2]
+            return String(split(a, "=", limit = 2)[2])
         end
     end
     return default
@@ -178,6 +180,148 @@ function eigmin_str(M)
     return @sprintf("%.3e", minimum(vals))
 end
 
+function eigmin_val(M)
+    vals = eigvals(Symmetric(M))
+    return Float64(minimum(vals))
+end
+
+function fmt_interval_token(x::Real)
+    s = @sprintf("%.6f", Float64(x))
+    s = replace(s, "-" => "m")
+    s = replace(s, "." => "p")
+    return s
+end
+
+function write_lines(path::String, lines)
+    open(path, "w") do io
+        for line in lines
+            println(io, line)
+        end
+    end
+end
+
+function unique_dir(path::String)
+    if !ispath(path)
+        return path
+    end
+    i = 2
+    while true
+        cand = "$(path)_$(i)"
+        if !ispath(cand)
+            return cand
+        end
+        i += 1
+    end
+end
+
+function max_abs_coeff(poly)
+    cs = coefficients(poly)
+    if isempty(cs)
+        return 0.0
+    end
+    m = 0.0
+    for c in cs
+        v = abs(Float64(c))
+        if v > m
+            m = v
+        end
+    end
+    return m
+end
+
+function dump_certificate_artifacts(
+    cert_out_dir::String,
+    cert_tag::String,
+    L::Float64,
+    U::Float64,
+    tau_cap::Int,
+    status,
+    gamma_scaled::Float64,
+    gamma_original::Float64,
+    fscale::Float64,
+    gscale::Float64,
+    use_global_b_multiplier::Bool,
+    use_half_s::Bool,
+    q0,
+    qI,
+    qB,
+    qu,
+    qv,
+    qUh,
+    qVh,
+    basis0::Vector{String},
+    basisI::Vector{String},
+    basisB::Vector{String},
+    basisu::Vector{String},
+    basisv::Vector{String},
+    basisUh::Vector{String},
+    basisVh::Vector{String},
+    taubasis::Vector{String},
+    taucoeffs::Vector{Float64},
+    residual_scaled::Float64,
+)
+    tag = isempty(cert_tag) ? "cert" : cert_tag
+    dname = "$(tag)_L$(fmt_interval_token(L))_U$(fmt_interval_token(U))_tau$(tau_cap)"
+    outdir = unique_dir(joinpath(cert_out_dir, dname))
+    mkpath(outdir)
+
+    writedlm(joinpath(outdir, "Q0.tsv"), q0, '\t')
+    writedlm(joinpath(outdir, "QI.tsv"), qI, '\t')
+    writedlm(joinpath(outdir, "Qu.tsv"), qu, '\t')
+    writedlm(joinpath(outdir, "Qv.tsv"), qv, '\t')
+    write_lines(joinpath(outdir, "basis_Q0.txt"), basis0)
+    write_lines(joinpath(outdir, "basis_QI.txt"), basisI)
+    write_lines(joinpath(outdir, "basis_Qu.txt"), basisu)
+    write_lines(joinpath(outdir, "basis_Qv.txt"), basisv)
+
+    if use_global_b_multiplier && qB !== nothing
+        writedlm(joinpath(outdir, "QB.tsv"), qB, '\t')
+        write_lines(joinpath(outdir, "basis_QB.txt"), basisB)
+    end
+    if use_half_s && qUh !== nothing && qVh !== nothing
+        writedlm(joinpath(outdir, "QUh.tsv"), qUh, '\t')
+        writedlm(joinpath(outdir, "QVh.tsv"), qVh, '\t')
+        write_lines(joinpath(outdir, "basis_QUh.txt"), basisUh)
+        write_lines(joinpath(outdir, "basis_QVh.txt"), basisVh)
+    end
+
+    write_lines(joinpath(outdir, "tau_basis.txt"), taubasis)
+    open(joinpath(outdir, "tau_coeffs.tsv"), "w") do io
+        println(io, "index\tmonomial\tcoefficient")
+        for i in eachindex(taubasis)
+            println(io, i, '\t', taubasis[i], '\t', @sprintf("%.17e", taucoeffs[i]))
+        end
+    end
+
+    open(joinpath(outdir, "metadata.txt"), "w") do io
+        println(io, "generated_at=", Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))
+        println(io, "status=", status)
+        println(io, "interval_L=", @sprintf("%.12f", L))
+        println(io, "interval_U=", @sprintf("%.12f", U))
+        println(io, "tau_cap=", tau_cap)
+        println(io, "gamma_scaled=", @sprintf("%.17e", gamma_scaled))
+        println(io, "gamma_original=", @sprintf("%.17e", gamma_original))
+        println(io, "fscale=", @sprintf("%.17e", fscale))
+        println(io, "gscale=", @sprintf("%.17e", gscale))
+        println(io, "residual_scaled_max_abs_coeff=", @sprintf("%.17e", residual_scaled))
+        println(io, "use_global_b_multiplier=", use_global_b_multiplier)
+        println(io, "use_half_s=", use_half_s)
+        println(io, "min_eig_Q0=", @sprintf("%.17e", eigmin_val(q0)))
+        println(io, "min_eig_QI=", @sprintf("%.17e", eigmin_val(qI)))
+        println(io, "min_eig_Qu=", @sprintf("%.17e", eigmin_val(qu)))
+        println(io, "min_eig_Qv=", @sprintf("%.17e", eigmin_val(qv)))
+        if use_global_b_multiplier && qB !== nothing
+            println(io, "min_eig_QB=", @sprintf("%.17e", eigmin_val(qB)))
+        end
+        if use_half_s && qUh !== nothing && qVh !== nothing
+            println(io, "min_eig_QUh=", @sprintf("%.17e", eigmin_val(qUh)))
+            println(io, "min_eig_QVh=", @sprintf("%.17e", eigmin_val(qVh)))
+        end
+    end
+
+    return outdir
+end
+
 function build_uniform_intervals(bmin::Float64, bmax::Float64, n::Int)
     edges = collect(range(bmin, bmax; length = n + 1))
     return [(edges[i], edges[i + 1]) for i in 1:n]
@@ -195,6 +339,7 @@ function run_interval_certificate(
     fmodel,
     gmodel,
     fscale::Float64,
+    gscale::Float64,
     Ef::Set{Exp3},
     Eg::Set{Exp3},
     S0_base::Set{Exp3},
@@ -207,6 +352,9 @@ function run_interval_certificate(
     use_global_b_multiplier::Bool = true,
     use_half_s::Bool = false,
     feas_eps_original::Float64 = 0.0,
+    dump_full_cert::Bool = false,
+    cert_out_dir::String = "",
+    cert_tag::String = "",
     level::Int = 0,
     max_tau_terms::Int = 2500,
     max_time::Float64 = 600.0,
@@ -246,6 +394,14 @@ function run_interval_certificate(
     monsuh, orduh = tuples_to_monomials(Suh, vars)
     monsvh, ordvh = tuples_to_monomials(Svh, vars)
     monsτ, ordτ = tuples_to_monomials(Sτ, vars)
+    basis0 = string.(mons0)
+    basisI = string.(monsI)
+    basisB = string.(monsB)
+    basisu = string.(monsu)
+    basisv = string.(monsv)
+    basisUh = string.(monsuh)
+    basisVh = string.(monsvh)
+    taubasis = string.(monsτ)
 
     println(@sprintf("Interval [%.6f, %.6f] setup", L, U))
     println("support sizes: |Ef|=$(length(Ef)), |Eg|=$(length(Eg))")
@@ -316,6 +472,7 @@ function run_interval_certificate(
     gamma_scaled = NaN
     gamma_original = NaN
     cert = false
+    cert_dir = ""
 
     if cert_status(status)
         gamma_scaled = value(γ)
@@ -338,6 +495,7 @@ function run_interval_certificate(
             qI = value.(Matrix(σI.Q))
             qu = value.(Matrix(σu.Q))
             qv = value.(Matrix(σv.Q))
+            qB = nothing
             qUh = nothing
             qVh = nothing
             if use_half_s
@@ -358,6 +516,52 @@ function run_interval_certificate(
                     println("min_eig(Q0) = ", eigmin_str(q0), ", min_eig(QI) = ", eigmin_str(qI), ", min_eig(Qu) = ", eigmin_str(qu), ", min_eig(Qv) = ", eigmin_str(qv))
                 end
             end
+
+            if dump_full_cert && !isempty(cert_out_dir)
+                poly_rhs = value(σ0) + value(σI) * gi + value(σu) * gu + value(σv) * gv + value(τ) * gmodel
+                if use_global_b_multiplier
+                    poly_rhs += value(σB) * gb
+                end
+                if use_half_s
+                    poly_rhs += value(σuh) * guh + value(σvh) * gvh
+                end
+                poly_lhs = fmodel - gamma_scaled
+                residual_scaled = max_abs_coeff(poly_lhs - poly_rhs)
+                taucoeffs = [Float64(value(MultivariatePolynomials.coefficient(τ, m))) for m in monsτ]
+
+                cert_dir = dump_certificate_artifacts(
+                    cert_out_dir,
+                    cert_tag,
+                    L,
+                    U,
+                    max_tau_terms,
+                    status,
+                    gamma_scaled,
+                    gamma_original,
+                    fscale,
+                    gscale,
+                    use_global_b_multiplier,
+                    use_half_s,
+                    q0,
+                    qI,
+                    qB,
+                    qu,
+                    qv,
+                    qUh,
+                    qVh,
+                    basis0,
+                    basisI,
+                    basisB,
+                    basisu,
+                    basisv,
+                    basisUh,
+                    basisVh,
+                    taubasis,
+                    taucoeffs,
+                    residual_scaled,
+                )
+                println("certificate_artifacts_dir = ", cert_dir)
+            end
         end
     elseif pstatus in (FEASIBLE_POINT, NEARLY_FEASIBLE_POINT)
         gamma_scaled = value(γ)
@@ -375,6 +579,7 @@ function run_interval_certificate(
         dual_status = dstatus,
         gamma_original = gamma_original,
         certified = cert,
+        cert_dir = cert_dir,
         sizes = (S0 = length(ord0), SI = length(ordI), Su = length(ordu), Sv = length(ordv), Sτ = length(ordτ)),
     )
 end
@@ -386,6 +591,7 @@ function run_interval_with_schedule(
     fmodel,
     gmodel,
     fscale::Float64,
+    gscale::Float64,
     Ef::Set{Exp3},
     Eg::Set{Exp3},
     S0_base::Set{Exp3},
@@ -399,6 +605,9 @@ function run_interval_with_schedule(
     use_global_b_multiplier::Bool = true,
     use_half_s::Bool = false,
     feas_eps_original::Float64 = 0.0,
+    dump_full_cert::Bool = false,
+    cert_out_dir::String = "",
+    cert_tag::String = "",
     level::Int = 0,
     max_time::Float64 = 600.0,
     threads::Int = 0,
@@ -409,10 +618,13 @@ function run_interval_with_schedule(
         println("Trying tau cap = $(tau_cap)")
         r = run_interval_certificate(
             L, U,
-            vars, fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base;
+            vars, fmodel, gmodel, fscale, gscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base;
             use_global_b_multiplier = use_global_b_multiplier,
             use_half_s = use_half_s,
             feas_eps_original = feas_eps_original,
+            dump_full_cert = dump_full_cert,
+            cert_out_dir = cert_out_dir,
+            cert_tag = cert_tag,
             level = level,
             max_tau_terms = tau_cap,
             max_time = max_time,
@@ -445,6 +657,12 @@ function main()
     feas_eps_original = parse_float_arg("feas_eps", 0.0)
     adaptive_depth = parse_int_arg("adaptive_depth", 0)
     adaptive_min_width = parse_float_arg("adaptive_min_width", 0.0)
+    cert_out_dir = parse_string_arg("cert_out_dir", "")
+    cert_tag_base = parse_string_arg("cert_tag", "")
+    dump_full_cert = has_flag("--dump_full_cert") || !isempty(cert_out_dir)
+    if dump_full_cert && isempty(cert_out_dir)
+        cert_out_dir = joinpath(dirname(@__DIR__), "certificates", "piecewise")
+    end
 
     if !(0.0 < bmin < bmax < 1.0)
         error("Require 0 < bmin < bmax < 1.")
@@ -495,6 +713,12 @@ function main()
     println("use_half_s=$(use_half_s)")
     println("feasibility_mode=$(feas_eps_original > 0.0), feas_eps_original=$(feas_eps_original)")
     println("adaptive_depth=$(adaptive_depth), adaptive_min_width=$(adaptive_min_width)")
+    println("dump_full_cert=$(dump_full_cert)")
+    if dump_full_cert
+        mkpath(cert_out_dir)
+        println("cert_out_dir=$(cert_out_dir)")
+        println("cert_tag_base=$(isempty(cert_tag_base) ? "interval" : cert_tag_base)")
+    end
     println("global supports: |Ef|=$(length(Ef)), |Eg|=$(length(Eg))")
     println("base sizes: |S0|=$(length(S0_base)), |Sb|=$(length(Sb_base)), |Su|=$(length(Su_base)), |Sv|=$(length(Sv_base)), |Sτ|=$(length(Sτ_base))")
     if use_half_s
@@ -510,12 +734,16 @@ function main()
     if adaptive_depth == 0
         for (idx, (L, U)) in enumerate(intervals)
             println("\n=== Interval $(idx)/$(nint): [$(L), $(U)] ===")
+            cert_tag = isempty(cert_tag_base) ? @sprintf("interval_i%02d", idx) : @sprintf("%s_i%02d", cert_tag_base, idx)
             r = run_interval_with_schedule(
                 L, U,
-                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
+                [b, u, v], fmodel, gmodel, fscale, gscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
                 use_global_b_multiplier = use_global_b_multiplier,
                 use_half_s = use_half_s,
                 feas_eps_original = feas_eps_original,
+                dump_full_cert = dump_full_cert,
+                cert_out_dir = cert_out_dir,
+                cert_tag = cert_tag,
                 level = level,
                 max_time = max_time,
                 threads = threads,
@@ -530,12 +758,16 @@ function main()
             task = popfirst!(queue)
             leaf_idx += 1
             println("\n=== Adaptive node $(leaf_idx): depth=$(task.depth), interval=[$(task.L), $(task.U)] ===")
+            cert_tag = isempty(cert_tag_base) ? @sprintf("node_%03d_d%d", leaf_idx, task.depth) : @sprintf("%s_node_%03d_d%d", cert_tag_base, leaf_idx, task.depth)
             r = run_interval_with_schedule(
                 task.L, task.U,
-                [b, u, v], fmodel, gmodel, fscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
+                [b, u, v], fmodel, gmodel, fscale, gscale, Ef, Eg, S0_base, Sb_base, Su_base, Sv_base, Suh_base, Svh_base, Sτ_base, tau_schedule;
                 use_global_b_multiplier = use_global_b_multiplier,
                 use_half_s = use_half_s,
                 feas_eps_original = feas_eps_original,
+                dump_full_cert = dump_full_cert,
+                cert_out_dir = cert_out_dir,
+                cert_tag = cert_tag,
                 level = level,
                 max_time = max_time,
                 threads = threads,
@@ -564,6 +796,9 @@ function main()
         end
         gtxt = isnan(r.gamma_original) ? "NaN" : @sprintf("%.6e", r.gamma_original)
         println(@sprintf("[%02d] [%.6f, %.6f] depth=%d status=%s certified=%s gamma=%s", i, r.L, r.U, r.depth, string(r.status), cmark, gtxt))
+        if !isempty(r.cert_dir)
+            println("     cert_dir=$(r.cert_dir)")
+        end
     end
     println(@sprintf("Certified intervals: %d / %d", ncert, length(results)))
     if ncert == length(results)

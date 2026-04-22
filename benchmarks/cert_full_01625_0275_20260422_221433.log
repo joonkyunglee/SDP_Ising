@@ -1,0 +1,31 @@
+Piecewise global-B run (interval multiplier on (b-L)(U-b))
+range=[0.1625, 0.275], intervals=1, level=0, tau_schedule=[1200], time_per_try=600.0
+use_global_b_multiplier=false
+use_half_s=false
+feasibility_mode=false, feas_eps_original=0.0
+adaptive_depth=0, adaptive_min_width=0.0
+dump_full_cert=true
+cert_out_dir=/Users/joonkyunglee/SDP_Ising/certificates/piecewise_full
+cert_tag_base=succ_01625_0275
+global supports: |Ef|=2381, |Eg|=456
+base sizes: |S0|=524, |Sb|=565, |Su|=543, |Sv|=561, |Sτ|=5306
+scales: fscale=1.048e+08, gscale=5.520e+03
+
+=== Interval 1/1: [0.1625, 0.275] ===
+Trying tau cap = 1200
+Interval [0.162500, 0.275000] setup
+support sizes: |Ef|=2381, |Eg|=456
+basis sizes: |S0|=524, |SI|=565, |SB|=565, |Su|=543, |Sv|=561, |Sτ|=1200
+status = OPTIMAL, gamma_original = -0.000000000000e+00
+min_eig(Q0) = 7.326e-12, min_eig(QI) = 2.312e-11, min_eig(Qu) = 1.681e-11, min_eig(Qv) = 9.616e-12
+certificate_artifacts_dir = /Users/joonkyunglee/SDP_Ising/certificates/piecewise_full/succ_01625_0275_i01_L0p162500_U0p275000_tau1200
+Certified interval with tau cap = 1200
+
+=== Summary ===
+[01] [0.162500, 0.275000] depth=0 status=OPTIMAL certified=YES gamma=-0.000000e+00
+     cert_dir=/Users/joonkyunglee/SDP_Ising/certificates/piecewise_full/succ_01625_0275_i01_L0p162500_U0p275000_tau1200
+Certified intervals: 1 / 1
+Overall result: FULL COVERAGE CERTIFIED on [0.1625, 0.275].
+real 181.82
+user 742.54
+sys 12.31

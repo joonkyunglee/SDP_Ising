@@ -1,0 +1,16 @@
+generated_at=2026-04-22 22:20:53
+status=OPTIMAL
+interval_L=0.275000000000
+interval_U=0.500000000000
+tau_cap=1200
+gamma_scaled=-0.00000000000000000e+00
+gamma_original=-0.00000000000000000e+00
+fscale=1.04770752000000000e+08
+gscale=5.52000000000000000e+03
+residual_scaled_max_abs_coeff=2.33384831682345063e-08
+use_global_b_multiplier=false
+use_half_s=false
+min_eig_Q0=4.65477519723788478e-11
+min_eig_QI=1.56692566217375361e-10
+min_eig_Qu=1.14229237919980062e-10
+min_eig_Qv=5.42976072531283156e-11
